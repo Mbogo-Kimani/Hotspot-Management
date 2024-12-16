@@ -1,115 +1,287 @@
 <template>
-    <div>
-      <table class="users-table">
-        <thead>
-          <tr>
-            <th>User ID</th>
-            <th>Product ID</th>
-            <th>Payment ID</th>
-            <th>Payment Phone Number</th>
-            <th>MAC</th>
-            <th>Devices</th>
-            <th>Status</th>
-            <th>Expiry</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.user_id">
-            <td>{{ user.user_id }}</td>
-            <td>{{ user.product_id }}</td>
-            <td>{{ user.payment_id }}</td>
-            <td>{{ user.payment_phone_number }}</td>
-            <td>{{ user.mac }}</td>
-            <td>{{ user.devices }}</td>
-            <td>{{ user.status }}</td>
-            <td>{{ user.expiry }}</td>
-            <td>
-              <button @click="editUser(user)" class="action-button edit">✏️</button>
-              <button @click="deleteUser(user.user_id)" class="action-button delete">🗑️</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="all-users">
+    <h1>All Users</h1>
+    <div class="search-bar">
+      <div class="search-container">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Search User"
+          @input="filterUsers"
+        />
+        <button>🔍</button>
+      </div>
     </div>
-  </template>
-  
-  <script lang="ts">
-  import axios from 'axios';
-  
-  export default {
-    name: 'UsersTable',
-    data() {
-      return {
-        users: [],
-      };
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>Clients</th>
+          <th>Phone Number</th>
+          <th>Packages</th>
+          <th>Status</th>
+          <th>Payment ID</th>
+          <th>MAC Address</th>
+          <th>Devices</th>
+          <th>IP Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="user in filteredUsers" :key="user.id">
+          <td>{{ user.id }}</td>
+          <td>{{ user.phone }}</td>
+          <td>{{ user.package }}</td>
+          <!-- Conditional class binding for status -->
+          <td :class="user.status === 'Active' ? 'status-active' : 'status-inactive'">
+            {{ user.status }}
+          </td>
+          <td>{{ user.payment_id }}</td>
+          <td>{{ user.mac_address }}</td>
+          <td>{{ user.devices }}</td>
+          <td>{{ user.ip_address }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script>
+
+export default {
+  name: "AllUsers",
+  data() {
+    return {
+      searchQuery: "",
+      users: [
+        {
+          id: "#001",
+          phone: "+254 748449048",
+          package: "Mbao Net",
+          status: "Active",
+          payment_id: "PAY123456",
+          mac_address: "00:1B:44:11:3A:B7",
+          devices: "1",
+          ip_address: "192.168.1.10",
+        },
+        {
+          id: "#002",
+          phone: "+254 701330765",
+          package: "Kumi Net",
+          status: "Inactive",
+          payment_id: "PAY123457",
+          mac_address: "00:1B:44:11:3A:B8",
+          devices: "1",
+          ip_address: "192.168.1.11",
+        },
+        {
+          id: "#003",
+          phone: "+254 748449048",
+          package: "Weekly Net",
+          status: "Active",
+          payment_id: "PAY123458",
+          mac_address: "00:1B:44:11:3A:B9",
+          devices: "2",
+          ip_address: "192.168.1.12",
+        },
+        {
+          id: "#004",
+          phone: "+254 701330765",
+          package: "Monthly Net",
+          status: "Inactive",
+          payment_id: "PAY123459",
+          mac_address: "00:1B:44:11:3A:BA",
+          devices: "1",
+          ip_address: "192.168.1.13",
+        },
+        {
+          id: "#005",
+          phone: "+254 748449048",
+          package: "Family Net x3",
+          status: "Active",
+          payment_id: "PAY123460",
+          mac_address: "00:1B:44:11:3A:BB",
+          devices: "3",
+          ip_address: "192.168.1.14",
+        },
+        {
+          id: "#006",
+          phone: "+254 701330765",
+          package: "Family Net x4",
+          status: "Inactive",
+          payment_id: "PAY123461",
+          mac_address: "00:1B:44:11:3A:BC",
+          devices: "2",
+          ip_address: "192.168.1.15",
+        },
+        {
+          id: "#007",
+          phone: "+254 748449048",
+          package: "Family Net x5",
+          status: "Active",
+          payment_id: "PAY123456",
+          mac_address: "00:1B:44:11:3A:B7",
+          devices: "4",
+          ip_address: "192.168.1.10",
+        },
+        {
+          id: "#008",
+          phone: "+254 701330765",
+          package: "Family Net x6",
+          status: "Inactive",
+          payment_id: "PAY123457",
+          mac_address: "00:1B:44:11:3A:B8",
+          devices: "6",
+          ip_address: "192.168.1.11",
+        },
+        {
+          id: "#009",
+          phone: "+254 748449048",
+          package: "Qtrly Family Net x3",
+          status: "Active",
+          payment_id: "PAY123458",
+          mac_address: "00:1B:44:11:3A:B9",
+          devices: "2",
+          ip_address: "192.168.1.12",
+        },
+        {
+          id: "#010",
+          phone: "+254 701330765",
+          package: "Qtrly Family Net x4",
+          status: "Inactive",
+          payment_id: "PAY123459",
+          mac_address: "00:1B:44:11:3A:BA",
+          devices: "3",
+          ip_address: "192.168.1.13",
+        },
+        {
+          id: "#011",
+          phone: "+254 748449048",
+          package: "Qtrly Family Net x5",
+          status: "Active",
+          payment_id: "PAY123460",
+          mac_address: "00:1B:44:11:3A:BB",
+          devices: "4",
+          ip_address: "192.168.1.14",
+        },
+        {
+          id: "#012",
+          phone: "+254 701330765",
+          package: "Qtrly Family Net x6",
+          status: "Inactive",
+          payment_id: "PAY123461",
+          mac_address: "00:1B:44:11:3A:BC",
+          devices: "2",
+          ip_address: "192.168.1.15",
+        },
+        {
+          id: "#013",
+          phone: "+254 748449048",
+          package: "8-Hour Net",
+          status: "Active",
+          payment_id: "PAY123460",
+          mac_address: "00:1B:44:11:3A:BB",
+          devices: "1",
+          ip_address: "192.168.1.14",
+        },
+      ],
+      filteredUsers: [],
+    };
+  },
+  methods: {
+    filterUsers() {
+      const query = this.searchQuery.trim().toLowerCase(); // Trim spaces and convert to lowercase
+      if (query === "") {
+        this.filteredUsers = this.users; // Show all users if the query is empty
+        return;
+      }
+      this.filteredUsers = this.users.filter((user) => {
+        const isMatch =
+          user.id.toLowerCase().includes(query) ||
+          user.phone.toLowerCase().includes(query) ||
+          user.package.toLowerCase().includes(query) ||
+          user.status.toLowerCase().includes(query) ||
+          user.payment_id.toLowerCase().includes(query) ||
+          user.mac_address.toLowerCase().includes(query) ||
+          user.devices.toLowerCase().includes(query) ||
+          user.ip_address.toLowerCase().includes(query);
+
+        return isMatch;
+      });
     },
-    methods: {
-      async fetchUsers() {
-        try {
-          const response = await axios.get('https://test.api.hotspot.etnet.co.ke/admin/dailyStatList');
-          this.users = response.data || [];
-        } catch (error) {
-          console.error('Error fetching users:', error);
-        }
-      },
-      editUser(user) {
-        console.log('Editing user:', user);
-        // Implement edit functionality here
-      },
-      deleteUser(userId) {
-        console.log('Deleting user with ID:', userId);
-        // Implement delete functionality here
-      },
-    },
-    mounted() {
-      this.fetchUsers();
-    },
-  };
-  </script>
-  
-  <style scoped>
-  .users-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
-    font-size: 1em;
-    text-align: left;
-  }
-  
-  .users-table thead {
-    background-color: #007bff;
-    color: black;
-  }
-  
-  .users-table th,
-  .users-table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-  }
-  
-  .users-table tr:nth-child(even) {
-    background-color: #f9f9f9;
-  }
-  
-  .users-table tr:hover {
-    background-color: #e9ecef;
-  }
-  
-  .action-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2em;
-    margin: 0 5px;
-  }
-  
-  .action-button.edit {
-    color: #007bff;
-  }
-  
-  .action-button.delete {
-    color: #dc3545;
-  }
-  </style>
-  
+  },
+  created() {
+    this.filteredUsers = this.users; // Initially show all users
+  },
+};
+</script>
+
+<style scoped>
+h1 {
+  color: #03259d;
+}
+
+.all-users {
+  padding: 20px;
+  width: 90%;
+  margin: 0 auto;
+}
+
+.search-bar {
+  margin-bottom: 20px;
+}
+
+.search-container {
+  position: relative;
+  display: inline-block;
+  width: 50%;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 8px 40px 8px 10px;
+  font-size: 14px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  box-sizing: border-box;
+  border-color: #ffcf77;
+}
+
+.search-container button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #007bff;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.users-table th {
+  background-color: #007bff;
+  color: white;
+}
+
+/* Status colors */
+.status-active {
+  color: green;
+  font-weight: bold;
+}
+
+.status-inactive {
+  color: red;
+  font-weight: bold;
+}
+</style>

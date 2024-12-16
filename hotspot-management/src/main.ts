@@ -1,17 +1,23 @@
-import './assets/main.css'
-import App from './App.vue'
-import router from './router/index'
+import './assets/main.css';
+import App from './App.vue';
+import router from './router';
 import "element-plus/dist/index.css";
 
+// Import necessary functions from Vue and Pinia
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 
 
+// Create the Vue app instance
+const app = createApp(App);
 
-const app = createApp(App)
 
-app.use(createPinia())
-app.use(router)
+// Use Pinia for state management
+app.use(createPinia());
 
-app.mount('#app')
+// Use Vue Router for routing
+app.use(router);
+
+// Mount the app to the DOM
+app.mount('#app');
