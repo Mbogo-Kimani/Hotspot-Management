@@ -1,114 +1,140 @@
 <template>
-    <div class="login-container">
-      <!-- Title of the login page -->
-      <h2 class="login-title">Login</h2>
-  
-      <!-- Login form containing input fields and a button -->
-      <el-form>
-        <!-- Input field for the username -->
-        <el-form-item>
-          <el-input v-model="username" placeholder="Name" clearable></el-input>
-        </el-form-item>
-  
-        <!-- Input field for the password, with a toggle to show/hide the password -->
-        <el-form-item>
-          <el-input v-model="password" type="password" placeholder="Password" show-password clearable></el-input>
-        </el-form-item>
-  
-        <!-- Button to trigger the login process -->
-        <el-form-item>
-          <el-button class="login-button" type="primary" @click="handleLogin">Login</el-button>
-        </el-form-item>
-      </el-form>
-  
-      <!-- Footer with a copyright notice -->
-      <div class="footer">
-        &copy; 2024 Hotspot Management
-      </div>
+  <div class="login-page">
+    <div class="login-card">
+      <h1 class="card-title">Login</h1>
+      <form @submit.prevent="login">
+        <div class="form-group">
+          <label for="name">User Name</label>
+          <input
+            type="text"
+            id="name"
+            v-model="name"
+            placeholder="Enter your username"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            v-model="password"
+            placeholder="Enter your password"
+            required
+          />
+        </div>
+        <button type="submit">Login</button>
+      </form>
+      <p v-if="error" class="error">{{ error }}</p>
     </div>
-  </template>
-  
-  
-  <script lang="ts">
-  export default {
-    data() {
-      return {
-        // Stores the entered username
-        username: '',
-  
-        // Stores the entered password
-        password: ''
-      };
-    },
-    methods: {
-      // Handles the login process when the button is clicked
-      handleLogin() {
-        if (this.username && this.password) {
-          // If both fields are filled, log the entered credentials (this is just a placeholder)
-          console.log('Logging in with', this.username, this.password);
+  </div>
+</template>
+
+<script>
+import axios from "axios";
+
+export default {
+  name: "LoginPage",
+  data() {
+    return {
+      name: "",
+      password: "",
+      error: null,
+    };
+  },
+  methods: {
+    async login() {
+      try {
+        // API Request
+        const response = await axios.post("/admin/login", {
+          name: this.name,
+          password: this.password,
+        });
+
+        // Check success
+        if (response.data && response.data.message === "success") {
+          // Extract token and expiration from the response
+          const token = response.data.data.token;  // Access token from 'data' object
+          const expiration = response.data.data.expiration; // Access expiration from 'data' object
+          
+          // Check if token is present
+          if (token) {
+            // Store the token in localStorage
+            localStorage.setItem("token", token);
+
+            // Optionally, store the expiration time if needed
+            localStorage.setItem("tokenExpiration", expiration);
+
+            // Redirect to dashboard
+            this.$router.push("/Dashboard");
+          } else {
+            this.error = "Login failed. No token received.";
+          }
         } else {
-          // Notify the user if either field is empty
-          console.log('Please enter both username and password');
+          this.error = "Invalid Username or Password.";
         }
+      } catch (err) {
+        this.error = "An error occurred while logging in.";
+        console.error(err.message);
       }
-    }
-  };
-  </script>
-  
-  <style>
-  /* General body styling for full-screen centering and background color */
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #1a1a1a;
-  }
-  
-  /* Styling for the login form container */
-  .login-container {
-    background-color: #fff;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 400px;
-  }
-  
-  /* Title styling */
-  .login-title {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: #333;
-  }
-  
-  /* Spacing between form items */
-  .el-form-item {
-    margin-bottom: 1rem;
-  }
-  
-  /* Styling for the login button */
-  .login-button {
-    width: 100%;
-    background-color: #409EFF;
-    color: white;
-    font-weight: bold;
-  }
-  
-  /* Hover effect for the login button */
-  .login-button:hover {
-    background-color: #66b1ff;
-  }
-  
-  /* Footer styling */
-  .footer {
-    text-align: center;
-    margin-top: 1rem;
-    font-size: 0.85rem;
-    color: #666;
-  }
-  </style>
-  
+    },
+  },
+};
+</script>
+
+
+<style scoped>
+
+
+.login-card {
+  background-color:#fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for card effect */
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  margin-top: 120px;
+  margin-left:450px;
+}
+
+.card-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.error {
+  color: red;
+  margin-top: 15px;
+}
+</style>
