@@ -1,242 +1,576 @@
 <template>
-    <div class="payments-page">
-      <!-- Title -->
-      <div class="header-container">
-        <h2 class="title">Payments</h2>
-      </div>
-  
-      <!-- Search Bar -->
-      <div class="search-bar">
-        <div class="search-container">
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Search Payments"
-            @input="filterPayments"
-          />
-          <button>🔍</button>
-        </div>
-      </div>
-  
-      <!-- Table -->
-      <div class="table-container">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Payment_ID</th>
-              <th>User_ID</th>
-              <th>Product_ID</th>
-              <th>Phone Number</th>
-              <th>Amount(ksh)</th>
-              <th>Payment Date</th>
-            </tr>
-          </thead>
+  <div class="payments-container">
+    <div class="search-bar">
+      <div class="search-container">
+        <table class="search-table">
           <tbody>
-            <tr v-for="(payment, index) in filteredPayments" :key="index">
-              <td>{{ payment.paymentId }}</td>
-              <td>{{ payment.userId }}</td>
-              <td>{{ payment.productId }}</td>
-              <td>{{ payment.phoneNumber }}</td>
-              <td>{{ payment.amount }}</td>
-              <td>{{ payment.paymentDate }}</td>
+            <tr>
+              <td>
+                <input
+                  type="text"
+                  v-model="searchInputs.mpesaReceiptNumber"
+                  placeholder="Mpesa Receipt Number"
+                  class="search-input"
+                  @keypress.enter="searchPayments"
+                />
+              </td>
+              <td> 
+                <input
+                  type="text"
+                  v-model="searchInputs.phoneNumber"
+                  placeholder="Phone Number"
+                  class="search-input"
+                  @keypress.enter="searchPayments"
+                />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  v-model="searchInputs.beginAt"
+                  class="search-input"
+                  @keypress.enter="searchPayments"
+                />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  v-model="searchInputs.endAt"
+                  class="search-input"
+                  @keypress.enter="searchPayments"
+                />
+              </td>
+              <td class="button-cell">
+                <button @click="searchPayments" class="search-button">🔍</button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </template>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>Phone Number</th>
+            <th>Amount</th>
+            <th>Mpesa Receipt Number</th>
+            <th>Transaction Date</th>
+            <th>Status</th> 
+            <th>Callback Error Msg</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="payment in filteredPayments" :key="payment.id">
+            <td>{{ payment.phoneNumber }}</td>
+            <td>{{ payment.amount }}</td>
+            <td>{{ payment.mpesaReceiptNumber }}</td>
+            <td>{{ formatDate(payment.transactionDate) }}</td>
+            <td>{{ statusLabels[payment.status] }}</td>
+            <td>{{ payment.cbErrorMsg }}</td>
+            <td>
+              <button @click="showDetails(payment)">Details</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Details Table -->
+    <div v-if="selectedPayment" class="details-table-container">
+      <div class="details-header-container">
+        <div class="details-header">More Information</div>
+        <button @click="closeDetails" class="close-button">Close</button>
+      </div>
+      <div class="more-table-container">
+        <table class="details-table">
+          <tr>
+            <th colspan="6" class="section-header">USER INFO</th>
+          </tr>
+          <tr>
+            <td>Name</td>
+            <td>{{userInfo?.name}}</td>
+            <td>Phone Number</td>
+            <td>{{userInfo?.phoneNumber}}</td>
+            <td>Email</td>
+            <td>{{userInfo?.email}}</td>
+          </tr>
+          <tr>
+            <td>Sync Mkt</td>
+            <td>{{getSyncMktLabel(userInfo?.syncMkt)}}</td>
+            <td>Sync Mkt Error</td>
+            <td>{{userInfo?.syncMktError}}</td>
+            <td>Last Login At</td>
+            <td>{{userInfo?.lastLoginAt}}</td>
+          </tr>
+          <tr>
+            <td>Create At</td>
+            <td>{{userInfo?.createAt}}</td>
+          </tr>
+
+          <!-- Subscription Info Section -->
+          <tr>
+            <th colspan="6" class="section-header">SUBSCRIPTION INFO</th>
+          </tr>
+          <tr>
+            <td>Profile Sync Mkt</td>
+            <td>{{getProfileSyncMktLabel(subscriptionInfo?.profileSyncMkt)}}</td>
+            <td>Profile Sync Mkt Error</td>
+            <td>{{ subscriptionInfo?.profileSyncMktError}}</td>
+            <td>Login Sync Mkt</td>
+            <td>{{getLoginSyncMktLabel(subscriptionInfo?.loginSyncMkt)}}</td>
+          </tr>
+          <tr>
+            <td>Login Sync Mkt Error</td>
+            <td>{{subscriptionInfo?.loginSyncMkt}}</td>
+            <td>Effective At</td>
+            <td>{{ subscriptionInfo?.effectiveAt}}</td>
+            <td>Expire At</td>
+            <td>{{ subscriptionInfo?.expireAt}}</td>
+          </tr>
+          <tr>
+            <td>Login At</td>
+            <td>{{subscriptionInfo?.loginAt}}</td>
+            <td>Mac</td>
+            <td>{{subscriptionInfo?.mac}}</td>
+            <td>IP</td>
+            <td>{{subscriptionInfo?.ip}}</td>
+          </tr>
+
+          <tr>
+            <th colspan="18">PRODUCT INFO</th>
+          </tr>
+          <tr>
+            <td>Title</td>
+            <td>{{productInfo?.title}}</td>
+            <td>Quantity</td>
+            <td>{{productInfo?.quantity}}</td>
+            <td>Unit</td>
+            <td>{{getUnitLabel(productInfo?.unit)}}</td>
+          </tr>
+          <tr>
+            <td>Fee</td>
+            <td>{{productInfo?.fee}}</td>
+            <td>Description</td>
+            <td>{{productInfo?.description}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script>
+import axios from "axios";
+
 export default {
   data() {
     return {
-      searchQuery: '',
-      payments: [
-        { paymentId: 'P001', userId: '#001', productId: 'HSP001', phoneNumber: '0748449048', amount: 10, paymentDate: '2024-12-10T12:30:00' },
-        { paymentId: 'P002', userId: '#002', productId: 'HSP002', phoneNumber: '0701330765', amount: 20, paymentDate: '2024-07-11T08:15:00' },
-        { paymentId: 'P003', userId: '#003', productId: 'HSP003', phoneNumber: '0748449048', amount: 50, paymentDate: '2024-01-10T15:45:00' },
-        { paymentId: 'P004', userId: '#004', productId: 'HSP004', phoneNumber: '0701330765', amount: 380, paymentDate: '2024-12-20T10:00:00' },
-        { paymentId: 'P005', userId: '#005', productId: 'HSP005', phoneNumber: '0748449048', amount: 1000, paymentDate: '2024-12-31T17:30:00' },
-        { paymentId: 'P006', userId: '#006', productId: 'HSP006', phoneNumber: '0701330765', amount: 1300, paymentDate: '2024-10-07T09:00:00' },
-        { paymentId: 'P007', userId: '#007', productId: 'HSP007', phoneNumber: '0748449048', amount: 1600, paymentDate: '2024-12-16T13:25:00' },
-        { paymentId: 'P008', userId: '#008', productId: 'HSP008', phoneNumber: '0701330765', amount: 1800, paymentDate: '2024-11-10T11:00:00' },
-        // more payment objects
-      ],
-      filteredPayments: []
+      searchInputs: {
+        mpesaReceiptNumber: "",
+        phoneNumber: "",
+        beginAt: "",
+        endAt: "",
+      },
+      searchQuery: "",
+      payments: [],
+      filteredPayments: [], // Add this to store locally filtered results
+      selectedPayment: null,
+      userInfo: [],
+      subscriptionInfo: [],
+      productInfo: [],
+      error: null, // For showing error messages
+      statusLabels: {
+        0: "Init",
+        1: "Call Success",
+        2: "Call Failed",
+        3: "Payment Success",
+        4: "Payment Failed",
+      },
+      requestBody: {
+        pageNum: 1,
+        pageSize: 10,
+        beginAt: "2024-12-10 00:00:00",
+        endAt: "2024-12-19 00:00:00",
+      },
     };
   },
+  computed: {
+    filteredStats() {
+      if (!this.searchQuery) return this.payments;
+      const query = this.searchQuery.toLowerCase();
+      return this.payments.filter(
+        (payment) =>
+          (payment.phoneNumber &&
+            payment.phoneNumber.toLowerCase().includes(query)) ||
+          (payment.mpesaReceiptNumber &&
+            payment.mpesaReceiptNumber.toLowerCase().includes(query))
+      );
+    },
+  },
   methods: {
-    filterPayments() {
-      // If the search query is empty, show all payments
-      if (!this.searchQuery) {
-        this.filteredPayments = this.payments;
+    formatDate(date) {
+      if (!date) return "N/A"; // Return 'N/A' if the date is null or undefined
+      const options = { year: "numeric", month: "short", day: "numeric" };
+      return new Date(date).toLocaleDateString(undefined, options);
+    },
+    async fetchPayments() {
+      try {
+        const token = "your_token_here"; // Replace with your actual token
+        console.log("Fetching payments with request body:", this.requestBody);
+
+        const response = await axios.post("/admin/paymentList", this.requestBody, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("API Response:", response.data);
+
+        if (response.data && response.data.data && Array.isArray(response.data.data.list)) {
+          this.payments = response.data.data.list;
+          this.filteredPayments = [...this.payments]; // Initialize filteredPayments
+        } else {
+          console.warn("Unexpected response format:", response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching payments:", error);
+
+        if (error.response) {
+          console.error("Server responded with:", error.response.data);
+          alert(`Failed to fetch payments: ${error.response.data.message || "Unknown error"}`);
+        } else if (error.request) {
+          console.error("No response received:", error.request);
+          alert("Failed to fetch payments: No response from server.");
+        } else {
+          console.error("Error setting up request:", error.message);
+          alert(`Failed to fetch payments: ${error.message}`);
+        }
+      }
+    },
+    async searchPayments() {
+      const { mpesaReceiptNumber, phoneNumber, beginAt, endAt } = this.searchInputs;
+
+      if (!mpesaReceiptNumber && !phoneNumber && !beginAt && !endAt) {
+        alert("Please fill at least one field to search.");
         return;
       }
 
-      const query = this.searchQuery.toLowerCase();
-      this.filteredPayments = this.payments.filter(payment => {
-        return (
-          payment.paymentId.toLowerCase().includes(query) ||
-          payment.userId.toLowerCase().includes(query) ||
-          payment.phoneNumber.includes(query) ||
-          payment.paymentDate.includes(query)
-        );
+      const token = "your_token_here"; // Replace with your actual token
+
+      // Filter payments locally based on input
+      this.filteredPayments = this.payments.filter((payment) => {
+        const matchesReceipt =
+          !mpesaReceiptNumber ||
+          payment.mpesaReceiptNumber.includes(mpesaReceiptNumber);
+        const matchesPhone =
+          !phoneNumber || payment.phoneNumber.includes(phoneNumber);
+        const matchesBeginAt = !beginAt || new Date(payment.date).toDateString() >= new Date(beginAt).toDateString();
+        const matchesEndAt = !endAt || new Date(payment.date).toDateString() <= new Date(endAt).toDateString();
+        return matchesReceipt && matchesPhone && matchesBeginAt && matchesEndAt;
       });
+
+      if (this.filteredPayments.length === 0) {
+        alert("No matching payments found.");
+      }
     },
-    formatDate(date) {
-      const options = { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: false 
-      };
-      const formattedDate = new Date(date).toLocaleString('en-GB', options);
-      return formattedDate.replace(',', '');  // Remove comma between date and time
-    }
+    async showDetails(payment) {
+      this.selectedPayment = payment;
+      this.error = null; // Reset error message
+      try {
+        console.log("Fetching details for paymentId:", payment.id);
+
+        const response = await axios.post("/admin/paymentExtInfo", {
+          paymentId: 128,
+        }, {
+          headers: {
+            Authorization: `Bearer your_token_here`, // Replace with your actual token
+          }
+        });
+
+        if (response.data.code === 0) {
+          const data = response.data.data || {};
+          console.log("Details fetched:", data);
+
+          this.userInfo = this.formatDates(data.user || []); // User details
+          this.subscriptionInfo = this.formatDates(data.subscription || []); // Subscription details
+          this.productInfo = this.formatDates(data.product || []); // Product details
+        } else {
+          console.warn("API Error:", response.data.message);
+          this.error = response.data.message || "Unknown error from the server.";
+        }
+      } catch (error) {
+        console.error("Error fetching payment details:", error);
+
+        if (error.response) {
+          this.error = `Server Error: ${
+            error.response.data.message || "Unknown error"
+          }`;
+        } else if (error.request) {
+          this.error = "No response from the server. Please check your network.";
+        } else {
+          this.error = "Unexpected error occurred. Please try again.";
+        }
+      }
+    },
+    closeDetails() {
+      this.selectedPayment = null;
+      this.userInfo = [];
+      this.subscriptionInfo = [];
+      this.productInfo = [];
+      this.error = null;
+    },
+    formatDates(data) {
+      if (!data || typeof data !== "object") return data; 
+      const formattedData = { ...data };
+      for (const key in formattedData) {
+        if (
+          formattedData[key] &&
+          typeof formattedData[key] === "string" &&
+          formattedData[key].includes("T")
+        ) {
+          formattedData[key] = this.formatDate(formattedData[key]);
+        }
+      }
+      return formattedData;
+    },
+    getSyncMktLabel(value) {
+      const labels = { 0: "No", 1: "Yes", 2: "Failed" };
+      return labels[value];
+    },
+    getUnitLabel(value) {
+      const labels = { 1: "Hour", 2: "Day", 3: "Week", 4: "Month" };
+      return labels[value];
+    },
+    getProfileSyncMktLabel(value) {
+      const labels = { 0: "No", 1: "Yes", 2: "Failed" };
+      return labels[value];
+    },
+    getLoginSyncMktLabel(value) {
+      const labels = { 0: "No", 1: "Yes", 2: "Failed" };
+      return labels[value];
+    },
   },
   mounted() {
-    // Initially load all payments and format paymentDate
-    this.filteredPayments = this.payments.map(payment => ({
-      ...payment,
-      paymentDate: this.formatDate(payment.paymentDate)
-    }));
-  }
+    this.fetchPayments();
+  },
 };
 </script>
+
+<style scoped>
+.payments-container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  width: 400vh;
+  height: 90%;
+ overflow-x: hidden;
+ margin-left: 40px;
+
  
-  <style scoped>
-  /* Header and Search */
-  .header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding: 0 20px;
-  }
-  
-  .title {
-    font-size: 1.5rem;
-    color: #1d4ed8;
-    font-weight: bold;
-    margin-top:30px ;
-    margin-left: -10px;
-  }
-  
-  .search-bar {
-  margin-top: -10px;  
-  margin-bottom: 20px;
-  margin-left: 10px;
+ margin-bottom: 30px;
 }
 
-.search-container {
-  position: relative;
-  display: inline-block;
-  width: 50%;
+
+
+.table-wrapper {
+  max-height: 500px; /* Limit table height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  width: 80%;
+  margin-left: 250px;
 }
 
-.search-container input {
+.stats-table {
   width: 100%;
-  padding: 8px 40px 8px 10px;
-  font-size: 14px;
-  border: 2px solid #ddd;
-  border-radius: 10px;
-  box-sizing: border-box;
-  border-color: #ffcf77;
-}
-
-.search-container button {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 16px;
-  color: #007bff;
-}
-
-  
-   /* Table */
-.table-container {
-  overflow-x: auto;
-  padding: 0 10px;
-}
-
-.custom-table {
-  width: 100%; 
   border-collapse: collapse;
+}
+  
+
+.stats-table th,
+.stats-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+  white-space: nowrap; /* Prevent text wrapping for horizontal scroll */
+}
+
+.stats-table th {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+.stats-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.stats-table tr:hover {
+  background-color: #d1e7fd;
+}
+
+.details-table-container{
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  margin-left: 250px;
+  margin-top:-165px;
+  transform: translate(0.5%, 0.5%); 
+  position: relative;
+  
+}
+
+.details-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  position: sticky; 
+  top: 0; /* Sticks to the top of the container */
+  z-index: 100; /* Ensures it stays on top of the table */
+}
+
+.details-header {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #aaaaaa;
+  text-align: cen;
+  
+}
+
+.close-button {
+  position: fixed; /* Keeps the button fixed relative to the viewport */
+  top: 10px; /* Adjust the top position */
+  right: 10px; /* Adjust the right position */
+  padding: 5px 10px;
+  font-size: 0.9em;
+  color: #fff;
+  background: linear-gradient(90deg, #ff4d4d, #ff0000); /* Gradient background for appeal */
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 1000; /* Ensures it appears above other elements */
+  transition: all 0.3s ease; /* Smooth transition effect */
+  display: flex;
+  justify-content: left;
+}
+
+.close-button:hover {
+  background: linear-gradient(90deg, #ff0000, #cc0000); /* Darker gradient on hover */
+  transform: scale(1.05); /* Slightly enlarge button */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Enhance shadow on hover */
+}
+
+.more-table-container {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top:-5px;
+}
+.details-table th,
+.details-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+  font-size: 0.9em;  
+}
+.details-table th {
+  background-color: #d1e7fd;;
+  color:#007bff;
+  font-weight: bold;
+  text-align: center;
+}
+.details-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.details-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.details-table tr:hover {
+  background-color: #ebf3fc;
+}
+
+
+.details-table td {
+  width: 150px; /* Set a fixed width */
+  max-width: 150px; /* Prevent resizing */
+  text-align: left; /* Align text to center */
+  vertical-align: middle; /* Vertically align text */
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden; /* Hide overflowing text */
+  text-overflow: ellipsis; /* Add ellipsis for overflow */
+}
+
+
+tbody tr td:nth-child(2n) {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.section-header{
   text-align: center;
 }
 
-.custom-table th,
-.custom-table td {
-  padding: 8px;
-  border: 1px solid #e5e7eb;
-  word-wrap: break-word; /* Ensure content breaks inside cells */
+.search-bar {
+  margin-top: 10px;
+  width: 100%;
 }
 
-.custom-table th {
-  background-color: #3b82f6;
+.search-container {
+ 
+  display: flex; /* Use flexbox to align items properly */
+  justify-content: space-between; /* Spread inputs and button */
+  flex-wrap: wrap; /* Ensure items wrap on smaller screens */
+  width: 100%;
+}
+
+.search-table {
+  margin-left: 280px;
+  padding: 6px;
+  text-align: left;
+  border: none; /* Removed borders around table cells */
+}
+
+.search-input {
+  width: 79%; /* Ensures full width of the cell */
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  
+}
+
+.search-button {
+  padding: 5px 12px;
+  background-color: #d1e7fd;
   color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+ 
+  margin-right: -40px;
 }
 
-.custom-table th:nth-child(1),
-.custom-table th:nth-child(2),
-.custom-table th:nth-child(3),
-.custom-table th:nth-child(4),
-.custom-table th:nth-child(5),
-.custom-table th:nth-child(6) {
-  min-width: 120px;
+.search-button:hover {
+  background-color:#007bff;
 }
 
-.custom-table th:nth-child(1),
-.custom-table td:nth-child(1) {
-  width: 10%; /* Payment ID */
-}
 
-.custom-table th:nth-child(2),
-.custom-table td:nth-child(2) {
-  width: 12%; /* User ID */
-}
-
-.custom-table th:nth-child(3),
-.custom-table td:nth-child(3) {
-  width: 15%; /* Product ID */
-}
-
-.custom-table th:nth-child(4),
-.custom-table td:nth-child(4) {
-  width: 20%; /* Phone Number */
-}
-
-.custom-table th:nth-child(5),
-.custom-table td:nth-child(5) {
-  width: 10%; /* Amount */
-}
-
-.custom-table th:nth-child(6),
-.custom-table td:nth-child(6) {
-  width: 15%; /* Payment Date */
-  white-space: nowrap; /* Prevents wrapping of the date and time */
-}
-  /* Status Colors */
-  .status-paid {
-    color: #22c55e; /* Green */
-    font-weight: bold;
-  }
-  
-  .status-pending {
-    color: #f59e0b; /* Orange */
-    font-weight: bold;
-  }
-  
-  .status-overdue {
-    color: #ef4444; /* Red */
-    font-weight: bold;
-  }
-  </style>
-  
+</style>

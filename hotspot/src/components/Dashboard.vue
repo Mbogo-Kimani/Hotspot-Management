@@ -5,7 +5,7 @@
       <div class="stat-card active-clients">
         <div class="text">
           <h3>ACTIVE CLIENTS</h3>
-          <p class="clients">10,000</p>
+          <p class="clients">{{ activeUserCountMax }}</p>
         </div>
         <img src="https://img.icons8.com/?size=60&id=0N99feShYSBW&format=png" alt="Users" />
       </div>
@@ -13,7 +13,7 @@
       <div class="stat-card total-revenue">
         <div class="text">
           <h3>TOTAL REVENUE</h3>
-          <p class="revenue">Ksh 550,000</p>
+          <p class="revenue">Ksh {{ totalRevenue }}</p>
         </div>
         <img src="https://img.icons8.com/?size=80&id=LFXbaiQfZuLS&format=png" alt="Total Revenue" />
       </div>
@@ -21,21 +21,21 @@
       <div class="stat-card payments-made">
         <div class="text">
           <h3>PAYMENTS MADE</h3>
-          <p class="payments">200,000</p>
+          <p class="payments">{{ totalPayments }}</p>
         </div>
         <img src="https://img.icons8.com/?size=80&id=DZMTS6QhaBfc&format=png" alt="Payments Made" />
       </div>
     </div>
 
     <div class="charts">
-      <div class="chart monthly-revenue">
-        <h3>MONTHLY REVENUE</h3>
+      <div class="chart chart-daily-stats">
+        <h3>DAILY STATS</h3>
         <div class="chart-container">
           <canvas id="lineChart"></canvas>
         </div>
       </div>
-      <div class="chart customer-growth">
-        <h3>CUSTOMER GROWTH RATE</h3>
+      <div class="chart chart-active-users">
+        <h3>ACTIVE USERS</h3>
         <div class="chart-container">
           <canvas id="growthRateChart"></canvas>
         </div>
@@ -52,165 +52,152 @@ export default {
   name: "Dashboard",
   data() {
     return {
-      stats: [], // Holds all data from API
-      filteredStats: [], // Filtered data for charts
-      chart: null, // Monthly revenue chart instance
-      growthChart: null, // Customer growth rate chart instance
+      stats: [],
+      filteredStats: [],
+      activeUserCountMax: 0,
+      totalRevenue: 0,
+      totalPayments: 0,
+      charts: {
+        lineChart: null,
+        growthRateChart: null,
+      },
     };
   },
   methods: {
     async fetchStats() {
       try {
-        const response = await axios.get(
-          "https://test.api.hotspot.etnet.co.ke/admin/dailyStatList"
+        const token = "YOUR_ACTUAL_TOKEN_HERE"; // Replace with your actual token
+        const requestBody = {
+          pageNum: 1,
+          pageSize: 100, // Fetch a large number to cover all data
+          beginAt: "2024-01-01",
+          endAt: "2025-12-19",
+        };
+
+        const response = await axios.post("/admin/dailyStatList", requestBody, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const stats = response.data?.data?.list || [];
+        this.stats = stats;
+        this.filteredStats = [...stats];
+
+        // Calculate active clients and total revenue
+        this.activeUserCountMax = stats.reduce(
+          (max, stat) => max + (stat.activeUserCountMax || 0),
+          0
         );
-        console.log("API Response:", response);
-        this.stats = response.data.data || []; // Access the array inside 'data'
-        this.filteredStats = this.stats; // Set filtered stats to all stats initially
-        this.updateChart(); // Update revenue chart
-        this.updateGrowthChart(); // Update growth chart
+        this.totalRevenue = stats.reduce(
+          (sum, stat) => sum + (stat.revenue || 0),
+          0
+        );
+
+        this.updateCharts();
       } catch (error) {
-        console.error("Error fetching stats:", error);
+        console.error("Error fetching stats:", error.response || error.message);
       }
     },
-    updateChart() {
-      const labels = this.filteredStats.map((stat) => {
-        const date = new Date(stat.statDate);
-        return date.getDate();
-      });
+    async fetchPayments() {
+      try {
+        const token = "YOUR_ACTUAL_TOKEN_HERE"; // Replace with your actual token
+        const requestBody = {
+          pageNum: 0, // Adjusted to start at 0
+          pageSize: 100,
+          beginAt: "2024-12-01 00:00:00", // Added time component
+          endAt: "2025-12-19 00:00:00",  // Added time component
+        };
 
-      const revenueData = this.filteredStats.map((stat) => stat.revenue);
-      const newUserData = this.filteredStats.map((stat) => stat.newUserCount);
+        const response = await axios.post("/admin/paymentList", requestBody, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (this.chart) {
-        this.chart.destroy();
+        console.log("API Response:", response.data);
+
+        // Ensure the response structure is as expected
+        if (response.data?.data) {
+          this.totalPayments = response.data.data.totalPayments || 0;
+        } else {
+          console.warn("Unexpected response structure:", response.data);
+          this.totalPayments = 0;
+        }
+      } catch (error) {
+        console.error(
+          "Error fetching payment info:",
+          error.response?.data || error.message || error
+        );
+        // Optionally display an error message to the user
+        alert("Failed to fetch payment info. Please try again later.");
       }
-
-      const ctx = document.getElementById("lineChart").getContext("2d");
-      this.chart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: "Revenue",
-              data: revenueData,
-              borderColor: "#007bff",
-              backgroundColor: "rgba(0, 123, 255, 0.1)",
-              fill: true,
-            },
-            {
-              label: "New Users",
-              data: newUserData,
-              borderColor: "#28a745",
-              backgroundColor: "rgba(40, 167, 69, 0.1)",
-              fill: true,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: "top",
-            },
-            tooltip: {
-              callbacks: {
-                title: (tooltipItems) => {
-                  const index = tooltipItems[0].dataIndex;
-                  const fullDate = new Date(this.filteredStats[index].statDate);
-                  return fullDate.toLocaleString();
-                },
-              },
-            },
-          },
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Day",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: "Values",
-              },
-              beginAtZero: true,
-            },
-          },
-        },
-      });
     },
+
+    updateCharts() {
+      this.updateLineChart();
+      this.updateGrowthChart();
+    },
+
+    updateLineChart() {
+      const labels = this.filteredStats.map((stat) =>
+        new Date(stat.statDate).toLocaleDateString()
+      );
+      const revenueData = this.filteredStats.map((stat) => stat.revenue || 0);
+      const newUserData = this.filteredStats.map((stat) => stat.newUserCount || 0);
+
+      this.createOrUpdateChart("lineChart", labels, [
+        { label: "Revenue", data: revenueData, borderColor: "#007bff" },
+        { label: "New Users", data: newUserData, borderColor: "#28a745" },
+      ]);
+    },
+
     updateGrowthChart() {
-      const labels = this.filteredStats.map((stat) => {
-        const date = new Date(stat.statDate);
-        return date.getDate();
-      });
-
-      const activeUserCountMinData = this.filteredStats.map(
-        (stat) => stat.activeUserCountMin
+      const labels = this.filteredStats.map((stat) =>
+        new Date(stat.statDate).toLocaleDateString()
       );
-      const activeUserCountMaxData = this.filteredStats.map(
-        (stat) => stat.activeUserCountMax
+      const activeMinData = this.filteredStats.map(
+        (stat) => stat.activeUserCountMin || 0
+      );
+      const activeMaxData = this.filteredStats.map(
+        (stat) => stat.activeUserCountMax || 0
       );
 
-      if (this.growthChart) {
-        this.growthChart.destroy();
+      this.createOrUpdateChart("growthRateChart", labels, [
+        { label: "Active Min", data: activeMinData, borderColor: "#ff5733" },
+        { label: "Active Max", data: activeMaxData, borderColor: "#ffc300" },
+      ]);
+    },
+
+    createOrUpdateChart(chartId, labels, datasets) {
+      const ctx = document.getElementById(chartId)?.getContext("2d");
+      if (!ctx) {
+        console.error(`Canvas with ID ${chartId} not found`);
+        return;
       }
 
-      const ctx = document.getElementById("growthRateChart").getContext("2d");
-      this.growthChart = new Chart(ctx, {
+      if (this.charts[chartId]) this.charts[chartId].destroy();
+
+      this.charts[chartId] = new Chart(ctx, {
         type: "line",
         data: {
-          labels: labels,
-          datasets: [
-            {
-              label: "Active Min",
-              data: activeUserCountMinData,
-              borderColor: "#007bff",
-              backgroundColor: "rgba(0, 123, 255, 0.1)",
-              fill: true,
-            },
-            {
-              label: "Active Max",
-              data: activeUserCountMaxData,
-              borderColor: "#28a745",
-              backgroundColor: "rgba(40, 167, 69, 0.1)",
-              fill: true,
-            },
-          ],
+          labels,
+          datasets: datasets.map((set) => ({
+            ...set,
+            backgroundColor: set.borderColor + "33", // Add transparency
+            fill: true,
+          })),
         },
         options: {
           responsive: true,
           plugins: {
-            legend: {
-              position: "top",
-            },
-            tooltip: {
-              callbacks: {
-                title: (tooltipItems) => {
-                  const index = tooltipItems[0].dataIndex;
-                  const fullDate = new Date(this.filteredStats[index].statDate);
-                  return fullDate.toLocaleString();
-                },
-              },
-            },
+            legend: { position: "top" },
           },
           scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Day",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: "Active Users",
-              },
-              beginAtZero: true,
-            },
+            x: { title: { display: true, text: "Date" } },
+            y: { title: { display: true, text: "Values" }, beginAtZero: true },
           },
         },
       });
@@ -218,22 +205,30 @@ export default {
   },
   mounted() {
     this.fetchStats();
+    this.fetchPayments();
   },
 };
 </script>
 
+
+
 <style scoped>
 .dashboard {
-  margin-left: 300px ;
+  
+  margin-left: 250px;
   padding: 20px;
+  overflow: hidden;
+  height: 565px;
+  width: 100%;
 }
 
 .stats {
+ 
   display: flex;
   justify-content: space-between;
-  margin-bottom: 30px;
-  width: 100%;
+ margin-top: -40px;
   padding: 40px;
+  margin-left: -25px;
 }
 
 .stat-card {
@@ -241,14 +236,15 @@ export default {
   justify-content: space-between;
   align-items: center;
   flex: 1;
-  padding: 20px;
+  padding: 15px;
   margin: 0 10px;
   text-align: left;
   border-radius: 8px;
   background-color: #f4f4f4;
   color: #333;
-  height: 100px;
+  height: 80px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  width: 500px;
 }
 
 .stat-card img {
@@ -265,51 +261,47 @@ export default {
 }
 
 .stat-card p {
-  margin-bottom: 20px;
   font-size: 20px;
   font-weight: bold;
 }
 
-.stat-card .text {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
 .active-clients {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #f8a541;
   color: grey;
 }
 
 .total-revenue {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #47d3f8;
   color: #0077ff;
 }
 
 .payments-made {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #f8768e;
   color: #fff;
 }
 
-
 .charts {
+ margin-left: -20px;
+  padding: 40px;
   display: flex;
   justify-content: space-between;
+  width: 850px;
+  height: 100%;
 }
 
 .chart {
+ 
+  width: 550px;
   flex: 1;
   margin: 0 30px;
   text-align: center;
 }
 
 .chart-container {
-  margin-top: 10px;
+  margin-left: -30px;
+  margin-top: 3px;
   position: relative;
-  height: 400px;
-  width: 100%;
+  width: 500px;
+  height: 800px;
 }
 </style>
